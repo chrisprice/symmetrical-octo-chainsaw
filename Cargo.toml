@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "automation-2040w-bsp",
+    "logic", 
+    "main"
+]
+resolver = "2"
+
+[workspace.dependencies]
+embassy-executor = "0.9.1"
+embassy-rp = "0.8.0"

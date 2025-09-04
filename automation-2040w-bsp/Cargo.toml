@@ -1,0 +1,12 @@
+[package]
+name = "automation-2040w-bsp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+embassy-executor = { workspace = true }
+embassy-rp = { workspace = true, features = ["rp2040"] }
+logic = { path = "../logic" }
+
+[features]
+default = []

@@ -1,0 +1,17 @@
+[package]
+name = "main"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "automation-app"
+path = "src/main.rs"
+
+[dependencies]
+embassy-executor = { workspace = true, features = ["arch-cortex-m", "executor-thread"] }
+embassy-rp = { workspace = true, features = ["rp2040"] }
+embassy-futures = "0.1"
+cortex-m-rt = "0.7"
+automation-2040w-bsp = { path = "../automation-2040w-bsp" }
+logic = { path = "../logic" }
+panic-halt = "0.2"
