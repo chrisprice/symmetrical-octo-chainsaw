@@ -1,0 +1,11 @@
+[package]
+name = "logic"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+embassy-executor = { workspace = true }
+embassy-futures = "0.1"
+
+[dev-dependencies]
+embassy-executor = { workspace = true, features = ["arch-std", "executor-thread"] }
