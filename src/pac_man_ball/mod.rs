@@ -1,5 +1,11 @@
 use defmt::*;
 
+pub trait Io {
+    type Error;
+    async fn inputs(&mut self) -> Result<Inputs, Self::Error>;
+    async fn set_outputs(&mut self, outputs: Outputs) -> Result<(), Self::Error>;
+}
+
 #[derive(Format, PartialEq, Eq, Clone, Debug, Default)]
 pub struct Inputs {
     pub checker_0_sensor: bool,

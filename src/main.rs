@@ -2,11 +2,14 @@
 #![no_main]
 
 mod automation_2040w;
-mod hardware_abstraction;
+mod rats_nest;
 mod mcp23017;
 mod pac_man_ball;
 
-use crate::{hardware_abstraction::HardwareAbstraction, pac_man_ball::Outputs};
+use crate::{
+    rats_nest::RatsNest,
+    pac_man_ball::{Io, Outputs},
+};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_rp::bind_interrupts;
@@ -30,10 +33,11 @@ async fn main(_spawner: Spawner) {
     let button = board.user_switch_a;
     let i2c = board.i2c;
 
-    let mut hardware_abstraction = HardwareAbstraction::new(i2c).await.unwrap();
+    let mut ha = RatsNest::new(i2c).await.unwrap();
+    let rats_nest = &mut ha;
 
     loop {
-        let inputs = hardware_abstraction.inputs().await.unwrap();
+        let inputs = rats_nest.inputs().await.unwrap();
         info!("inputs: {:?}", inputs);
 
         let mut outputs = Outputs::default();
@@ -45,7 +49,7 @@ async fn main(_spawner: Spawner) {
             outputs.checker_0_led = false;
         }
         info!("outputs: {:?}", outputs);
-        hardware_abstraction.set_outputs(outputs).await.unwrap();
+        rats_nest.set_outputs(outputs).await.unwrap();
 
         Timer::after_millis(1000).await;
     }

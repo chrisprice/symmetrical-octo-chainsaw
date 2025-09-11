@@ -3,7 +3,7 @@ use embedded_hal_async::i2c::I2c as _;
 
 use crate::{
     mcp23017,
-    pac_man_ball::{Inputs, Outputs},
+    pac_man_ball::{Inputs, Io, Outputs},
 };
 
 const PULL_UP_ENABLED: u8 = 0xFF;
@@ -16,11 +16,11 @@ const ADDRESSES: [u8; 3] = [
     mcp23017::ADDR + 0x04,
 ];
 
-pub struct HardwareAbstraction<'d, I2C: embassy_rp::i2c::Instance> {
+pub struct RatsNest<'d, I2C: embassy_rp::i2c::Instance> {
     i2c: I2c<'d, I2C, Async>,
 }
 
-impl<'d, I2C: embassy_rp::i2c::Instance> HardwareAbstraction<'d, I2C> {
+impl<'d, I2C: embassy_rp::i2c::Instance> RatsNest<'d, I2C> {
     pub async fn new(i2c: I2c<'d, I2C, Async>) -> Result<Self, embassy_rp::i2c::Error> {
         let mut ha = Self { i2c };
         for address in ADDRESSES {
@@ -42,7 +42,26 @@ impl<'d, I2C: embassy_rp::i2c::Instance> HardwareAbstraction<'d, I2C> {
         Ok(())
     }
 
-    pub async fn inputs(&mut self) -> Result<Inputs, embassy_rp::i2c::Error> {
+    async fn read_portb(&mut self, address: u8) -> Result<u8, embassy_rp::i2c::Error> {
+        let mut buffer = [0];
+        self.i2c
+            .write_read(address, &[mcp23017::GPIOB], &mut buffer)
+            .await?;
+        Ok(buffer[0])
+    }
+
+    async fn write_porta(&mut self, address: u8, value: u8) -> Result<(), embassy_rp::i2c::Error> {
+        self.i2c
+            .write_async(address, [mcp23017::GPIOA, value])
+            .await?;
+        Ok(())
+    }
+}
+
+impl<'d, I2C: embassy_rp::i2c::Instance> Io for RatsNest<'d, I2C> {
+    type Error = embassy_rp::i2c::Error;
+
+    async fn inputs(&mut self) -> Result<Inputs, Self::Error> {
         let values = [
             self.read_portb(ADDRESSES[0]).await?,
             self.read_portb(ADDRESSES[1]).await?,
@@ -74,15 +93,7 @@ impl<'d, I2C: embassy_rp::i2c::Instance> HardwareAbstraction<'d, I2C> {
         })
     }
 
-    async fn read_portb(&mut self, address: u8) -> Result<u8, embassy_rp::i2c::Error> {
-        let mut buffer = [0];
-        self.i2c
-            .write_read(address, &[mcp23017::GPIOB], &mut buffer)
-            .await?;
-        Ok(buffer[0])
-    }
-
-    pub async fn set_outputs(&mut self, outputs: Outputs) -> Result<(), embassy_rp::i2c::Error> {
+    async fn set_outputs(&mut self, outputs: Outputs) -> Result<(), Self::Error> {
         let mut values = [0u8; 3];
         values[0] |= if outputs.checker_0_led { 0x01 } else { 0x00 };
         values[0] |= if outputs.checker_1_led { 0x02 } else { 0x00 };
@@ -104,13 +115,6 @@ impl<'d, I2C: embassy_rp::i2c::Instance> HardwareAbstraction<'d, I2C> {
         for (address, value) in ADDRESSES.iter().zip(values.iter()) {
             self.write_porta(*address, *value).await?;
         }
-        Ok(())
-    }
-
-    async fn write_porta(&mut self, address: u8, value: u8) -> Result<(), embassy_rp::i2c::Error> {
-        self.i2c
-            .write_async(address, [mcp23017::GPIOA, value])
-            .await?;
         Ok(())
     }
 }
