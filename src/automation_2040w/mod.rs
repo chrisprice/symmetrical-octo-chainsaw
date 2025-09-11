@@ -2,7 +2,7 @@
 
 use embassy_rp::Peripherals;
 use embassy_rp::gpio::{Flex, Input, Level, Output, Pull};
-use embassy_rp::i2c::{self, Async, Config, InterruptHandler};
+use embassy_rp::i2c::{self, Async, Config, I2c, InterruptHandler};
 use embassy_rp::interrupt::typelevel::{Binding, I2C0_IRQ};
 use embassy_rp::peripherals::I2C0;
 
@@ -11,7 +11,7 @@ pub struct Automation2040W<'d> {
     pub gp0: Flex<'d>,
     pub gp1: Flex<'d>,
     pub gp2: Flex<'d>,
-    pub i2c: i2c::I2c<'d, I2C0, Async>,
+    pub i2c: I2c<'d, I2C0, Async>,
     pub conn_led: Output<'d>,
     pub adc_led_1: Output<'d>,
     pub adc_led_2: Output<'d>,
