@@ -65,6 +65,7 @@ static_cell = "2.1"
 portable-atomic = { version = "1.5", features = ["critical-section"] }
 log = "0.4"
 rand = { version = "0.9.0", default-features = false }
+bitflags = "2.9.4"
 
 # Below configs are here to mute the rust-analyzer error.
 # "Can't find crate for 'test'" as this is a no_std project

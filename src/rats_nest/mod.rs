@@ -1,14 +1,9 @@
 use embassy_rp::i2c::{Async, I2c};
-use embedded_hal_async::i2c::I2c as _;
 
 use crate::{
-    mcp23017,
+    mcp23017::{self, Mcp23017, Direction, PullUp},
     pac_man_ball::{Inputs, Io, Outputs},
 };
-
-const PULL_UP_ENABLED: u8 = 0xFF;
-const DIRECTION_OUTPUT: u8 = 0x00;
-const DIRECTION_INPUT: u8 = 0xFF;
 
 const ADDRESSES: [u8; 3] = [
     mcp23017::ADDR + 0x01,
@@ -24,37 +19,30 @@ impl<'d, I2C: embassy_rp::i2c::Instance> RatsNest<'d, I2C> {
     pub async fn new(i2c: I2c<'d, I2C, Async>) -> Result<Self, embassy_rp::i2c::Error> {
         let mut ha = Self { i2c };
         for address in ADDRESSES {
-            ha.configure(address).await?;
+            let mut mcp = Mcp23017::new(&mut ha.i2c, address);
+            ha.configure(&mut mcp).await?;
         }
         Ok(ha)
     }
 
-    async fn configure(&mut self, address: u8) -> Result<(), embassy_rp::i2c::Error> {
-        self.i2c
-            .write_async(address, [mcp23017::IODIRA, DIRECTION_OUTPUT])
-            .await?;
-        self.i2c
-            .write_async(address, [mcp23017::IODIRB, DIRECTION_INPUT])
-            .await?;
-        self.i2c
-            .write_async(address, [mcp23017::GPPUB, PULL_UP_ENABLED])
-            .await?;
+    async fn configure(
+        &mut self,
+        mcp: &mut Mcp23017<'_, 'd, I2C>,
+    ) -> Result<(), embassy_rp::i2c::Error> {
+        mcp.set_iodira(Direction::ALL_OUT).await?;
+        mcp.set_iodirb(Direction::ALL_IN).await?;
+        mcp.set_gppub(PullUp::ALL).await?;
         Ok(())
     }
 
     async fn read_portb(&mut self, address: u8) -> Result<u8, embassy_rp::i2c::Error> {
-        let mut buffer = [0];
-        self.i2c
-            .write_read(address, &[mcp23017::GPIOB], &mut buffer)
-            .await?;
-        Ok(buffer[0])
+        let mut mcp = Mcp23017::new(&mut self.i2c, address);
+        mcp.read_gpiob().await
     }
 
     async fn write_porta(&mut self, address: u8, value: u8) -> Result<(), embassy_rp::i2c::Error> {
-        self.i2c
-            .write_async(address, [mcp23017::GPIOA, value])
-            .await?;
-        Ok(())
+        let mut mcp = Mcp23017::new(&mut self.i2c, address);
+        mcp.write_gpioa(value).await
     }
 }
 
