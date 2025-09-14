@@ -2,25 +2,27 @@
 #![no_main]
 
 mod automation_2040w;
-mod rats_nest;
 mod mcp23017;
 mod pac_man_ball;
+mod rats_nest;
 
 use crate::{
-    rats_nest::RatsNest,
     pac_man_ball::{Io, Outputs},
+    rats_nest::RatsNest,
 };
 use defmt::*;
 use embassy_executor::Spawner;
+use embassy_rp::adc::{self};
 use embassy_rp::bind_interrupts;
-use embassy_rp::i2c::InterruptHandler;
-use embassy_rp::peripherals::I2C0;
+use embassy_rp::i2c::{self};
+use embassy_rp::peripherals::{I2C0, PIO0};
+use embassy_rp::pio::{self};
 use embassy_time::Timer;
 
-use {defmt_rtt as _, panic_probe as _};
-
 bind_interrupts!(struct Irqs {
-    I2C0_IRQ => InterruptHandler<I2C0>;
+    ADC_IRQ_FIFO => adc::InterruptHandler;
+    I2C0_IRQ => i2c::InterruptHandler<I2C0>;
+    PIO0_IRQ_0 => pio::InterruptHandler<PIO0>;
 });
 
 #[embassy_executor::main]

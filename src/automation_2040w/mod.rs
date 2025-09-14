@@ -1,17 +1,24 @@
 //! Pin mappings for the Pimoroni Automation 2040 W board.
 
+use cyw43_pio::{DEFAULT_CLOCK_DIVIDER, PioSpi};
 use embassy_rp::Peripherals;
+use embassy_rp::adc::{self, Adc, Channel};
 use embassy_rp::gpio::{Flex, Input, Level, Output, Pull};
-use embassy_rp::i2c::{self, Async, Config, I2c, InterruptHandler};
-use embassy_rp::interrupt::typelevel::{Binding, I2C0_IRQ};
-use embassy_rp::peripherals::I2C0;
+use embassy_rp::i2c::{self, I2c};
+use embassy_rp::interrupt::typelevel::{ADC_IRQ_FIFO, Binding, I2C0_IRQ, PIO0_IRQ_0};
+use embassy_rp::peripherals::{DMA_CH0, I2C0, PIO0};
+use embassy_rp::pio::Pio;
+use embassy_rp::pio::{self};
 
 #[allow(dead_code)]
 pub struct Automation2040W<'d> {
     pub gp0: Flex<'d>,
     pub gp1: Flex<'d>,
     pub gp2: Flex<'d>,
-    pub i2c: I2c<'d, I2C0, Async>,
+    pub adc_0: Channel<'d>,
+    pub adc_1: Channel<'d>,
+    pub adc_2: Channel<'d>,
+    pub i2c: I2c<'d, I2C0, i2c::Async>,
     pub conn_led: Output<'d>,
     pub adc_led_1: Output<'d>,
     pub adc_led_2: Output<'d>,
@@ -30,15 +37,29 @@ pub struct Automation2040W<'d> {
     pub in_buffered_2: Input<'d>,
     pub in_buffered_3: Input<'d>,
     pub in_buffered_4: Input<'d>,
+    pub pwr: Output<'d>,
+    pub spi: PioSpi<'d, PIO0, 0, DMA_CH0>,
+    pub adc: Adc<'d, adc::Async>,
 }
 
 impl<'d> Automation2040W<'d> {
-    pub fn new(p: Peripherals, irq: impl Binding<I2C0_IRQ, InterruptHandler<I2C0>>) -> Self {
+    pub fn new(
+        p: Peripherals,
+        irqs: impl Binding<I2C0_IRQ, i2c::InterruptHandler<I2C0>>
+        + Binding<PIO0_IRQ_0, pio::InterruptHandler<PIO0>>
+        + Binding<ADC_IRQ_FIFO, adc::InterruptHandler>
+        + Copy,
+    ) -> Self {
         let gp0 = Flex::new(p.PIN_0);
         let gp1 = Flex::new(p.PIN_1);
         let gp2 = Flex::new(p.PIN_2);
 
-        let i2c = i2c::I2c::new_async(p.I2C0, p.PIN_5, p.PIN_4, irq, Config::default());
+        let adc = Adc::new(p.ADC, irqs, Default::default());
+        let adc_0 = Channel::new_pin(p.PIN_26, Pull::None);
+        let adc_1 = Channel::new_pin(p.PIN_27, Pull::None);
+        let adc_2 = Channel::new_pin(p.PIN_28, Pull::None);
+
+        let i2c = i2c::I2c::new_async(p.I2C0, p.PIN_5, p.PIN_4, irqs, Default::default());
 
         let conn_led = Output::new(p.PIN_3, Level::Low);
 
@@ -65,10 +86,27 @@ impl<'d> Automation2040W<'d> {
         let in_buffered_3 = Input::new(p.PIN_21, Pull::Down);
         let in_buffered_4 = Input::new(p.PIN_22, Pull::Down);
 
+        let pwr = Output::new(p.PIN_23, Level::Low);
+        let cs = Output::new(p.PIN_25, Level::High);
+        let mut pio = Pio::new(p.PIO0, irqs);
+        let spi = PioSpi::new(
+            &mut pio.common,
+            pio.sm0,
+            DEFAULT_CLOCK_DIVIDER,
+            pio.irq0,
+            cs,
+            p.PIN_24,
+            p.PIN_29,
+            p.DMA_CH0,
+        );
+
         Self {
             gp0,
             gp1,
             gp2,
+            adc_0,
+            adc_1,
+            adc_2,
             i2c,
             conn_led,
             adc_led_1,
@@ -88,6 +126,9 @@ impl<'d> Automation2040W<'d> {
             in_buffered_2,
             in_buffered_3,
             in_buffered_4,
+            pwr,
+            spi,
+            adc,
         }
     }
 }

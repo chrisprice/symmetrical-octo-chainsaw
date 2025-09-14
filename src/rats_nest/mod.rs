@@ -20,13 +20,12 @@ impl<'d, I2C: embassy_rp::i2c::Instance> RatsNest<'d, I2C> {
         let mut ha = Self { i2c };
         for address in ADDRESSES {
             let mut mcp = Mcp23017::new(&mut ha.i2c, address);
-            ha.configure(&mut mcp).await?;
+            Self::configure(&mut mcp).await?;
         }
         Ok(ha)
     }
 
     async fn configure(
-        &mut self,
         mcp: &mut Mcp23017<'_, 'd, I2C>,
     ) -> Result<(), embassy_rp::i2c::Error> {
         mcp.set_iodira(Direction::ALL_OUT).await?;
