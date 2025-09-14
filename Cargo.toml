@@ -66,6 +66,10 @@ portable-atomic = { version = "1.5", features = ["critical-section"] }
 log = "0.4"
 rand = { version = "0.9.0", default-features = false }
 bitflags = "2.9.4"
+edge-http = { version = "0.6.1", features = ["defmt"] }
+edge-nal = { version = "0.5.0" }
+edge-ws = { version = "0.5.0", features = ["defmt"] }
+edge-nal-embassy = { version = "0.6.0", features = ["defmt"] }
 
 # Below configs are here to mute the rust-analyzer error.
 # "Can't find crate for 'test'" as this is a no_std project
