@@ -42,7 +42,7 @@ pub struct Automation2040W<'d> {
     pub adc: Adc<'d, adc::Async>,
 }
 
-impl<'d> Automation2040W<'d> {
+impl Automation2040W<'_> {
     pub fn new(
         p: Peripherals,
         irqs: impl Binding<I2C0_IRQ, i2c::InterruptHandler<I2C0>>

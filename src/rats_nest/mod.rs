@@ -45,7 +45,7 @@ impl<'d, I2C: embassy_rp::i2c::Instance> RatsNest<'d, I2C> {
     }
 }
 
-impl<'d, I2C: embassy_rp::i2c::Instance> Io for RatsNest<'d, I2C> {
+impl<I2C: embassy_rp::i2c::Instance> Io for RatsNest<'_, I2C> {
     type Error = embassy_rp::i2c::Error;
 
     async fn inputs(&mut self) -> Result<Inputs, Self::Error> {
