@@ -1,4 +1,5 @@
 use defmt::*;
+use serde::{Deserialize, Serialize};
 
 pub trait Io {
     type Error;
@@ -6,7 +7,7 @@ pub trait Io {
     async fn set_outputs(&mut self, outputs: Outputs) -> Result<(), Self::Error>;
 }
 
-#[derive(Format, PartialEq, Eq, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Format, PartialEq, Eq, Clone, Debug, Default)]
 pub struct Inputs {
     pub checker_0_sensor: bool,
     pub checker_1_sensor: bool,
@@ -32,7 +33,7 @@ pub struct Inputs {
     pub enter_switch: bool,
 }
 
-#[derive(Format, PartialEq, Eq, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Format, PartialEq, Eq, Clone, Debug, Default)]
 pub struct Outputs {
     pub checker_0_led: bool,
     pub checker_1_led: bool,
@@ -52,4 +53,3 @@ pub struct Outputs {
     pub divider_solenoid_right: bool,
     pub ray_lamp: bool,
 }
-

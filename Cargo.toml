@@ -70,6 +70,8 @@ edge-http = { version = "0.6.1", features = ["defmt"] }
 edge-nal = { version = "0.5.0" }
 edge-ws = { version = "0.5.0", features = ["defmt"] }
 edge-nal-embassy = { version = "0.6.0", features = ["defmt"] }
+serde-json-core = "0.6.0"
+serde = { version = "1.0.223", default-features = false }
 
 # Below configs are here to mute the rust-analyzer error.
 # "Can't find crate for 'test'" as this is a no_std project
