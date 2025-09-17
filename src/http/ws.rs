@@ -1,16 +1,29 @@
-use core::marker::PhantomData;
-
 use defmt::*;
 use edge_http::Method;
 use edge_http::io::server::{Connection, Handler};
 use edge_http::ws::MAX_BASE64_KEY_RESPONSE_LEN;
 use edge_ws::{FrameHeader, FrameType};
+use embassy_futures::select::{Either, select};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::signal::Signal;
 use embedded_io_async::{Read, Write};
 
 use crate::pac_man_ball::{Inputs, Outputs};
 
+static INPUTS: Signal<CriticalSectionRawMutex, Inputs> = Signal::new();
+static OUTPUTS: Signal<CriticalSectionRawMutex, Outputs> = Signal::new();
+
 #[derive(Default)]
 pub struct WsHandler;
+
+impl WsHandler {
+    pub fn signal_inputs(&self, inputs: Inputs) {
+        INPUTS.signal(inputs);
+    }
+    pub async fn wait_for_outputs(&self) -> Outputs {
+        OUTPUTS.wait().await
+    }
+}
 
 impl Handler for WsHandler {
     type Error<E>
@@ -52,42 +65,52 @@ impl Handler for WsHandler {
             let mut buf = [0_u8; 8192];
 
             loop {
-                let mut header = FrameHeader::recv(&mut socket).await.map_err(Error::Ws)?;
-                let payload = header
-                    .recv_payload(&mut socket, &mut buf)
-                    .await
-                    .map_err(Error::Ws)?;
-
-                match header.frame_type {
-                    FrameType::Text(fragmented) => {
-                        defmt::assert!(!fragmented, "Fragmented frames not supported");
-                        let (outputs, length): (Outputs, _) = serde_json_core::from_slice(payload)?;
-                        defmt::assert_eq!(length, payload.len(), "Did not consume full payload");
-                        info!("Got {}, with payload \"{}\"", header, outputs);
-                        let inputs = Inputs::default();
-                        let size = serde_json_core::to_slice(&inputs, &mut buf)?;
-                        header.mask_key = None;
+                match select(FrameHeader::recv(&mut socket), INPUTS.wait()).await {
+                    Either::First(header) => {
+                        let header = header.map_err(Error::Ws)?;
+                        let payload = header
+                            .recv_payload(&mut socket, &mut buf)
+                            .await
+                            .map_err(Error::Ws)?;
+                        match header.frame_type {
+                            FrameType::Text(fragmented) => {
+                                defmt::assert!(!fragmented, "Fragmented frames not supported");
+                                let (outputs, length): (Outputs, _) =
+                                    serde_json_core::from_slice(payload)?;
+                                defmt::assert_eq!(
+                                    length,
+                                    payload.len(),
+                                    "Did not consume full payload"
+                                );
+                                info!("Got {}, with payload \"{}\"", header, outputs);
+                                OUTPUTS.signal(outputs);
+                            }
+                            FrameType::Close => {
+                                info!("Got {}, client closed the connection cleanly", header);
+                                break;
+                            }
+                            _ => {
+                                warn!("Unexpected {}, closing", header);
+                                break;
+                            }
+                        }
+                    }
+                    Either::Second(payload) => {
+                        let payload_len = serde_json_core::to_slice(&payload, &mut buf)?
+                            .try_into()
+                            .expect("buffer.len() << u64::MAX");
+                        let header = FrameHeader {
+                            frame_type: FrameType::Text(false),
+                            payload_len,
+                            mask_key: None,
+                        };
+                        header.send(&mut socket).await.map_err(Error::Ws)?;
                         header
-                            .send_payload(&mut socket, &buf[..size])
+                            .send_payload(&mut socket, &buf)
                             .await
                             .map_err(Error::Ws)?;
                     }
-                    FrameType::Close => {
-                        info!("Got {}, client closed the connection cleanly", header);
-                        break;
-                    }
-                    FrameType::Ping => {
-                        info!("Got {}, will respond with Pong", header);
-                        header.mask_key = None;
-                        header.frame_type = FrameType::Pong;
-                        header.send(&mut socket).await.map_err(Error::Ws)?;
-                        continue;
-                    }
-                    _ => {
-                        warn!("Unexpected {}, closing", header);
-                        break;
-                    }
-                }
+                };
             }
         }
 
