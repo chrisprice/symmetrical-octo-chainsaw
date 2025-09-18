@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ada's Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #0F0C29;
+            background-image: linear-gradient(to right top, #0f0c29, #1c153f, #2a1d56, #382570, #482d8b);
+            color: #f0f0f0;
+            overflow-x: hidden;
+        }
+        .font-display {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        /* Rainbow Text Animation */
+        .rainbow-text {
+            background: linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #6366f1, #a855f7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: rainbow-text-animation 10s ease infinite;
+            background-size: 200% 200%;
+        }
+
+        @keyframes rainbow-text-animation {
+            0%{background-position:0% 50%}
+            50%{background-position:100% 50%}
+            100%{background-position:0% 50%}
+        }
+
+        /* Lightning Bolt Effect */
+        .lightning-bolt {
+            position: fixed; /* Use fixed positioning for viewport-relative coordinates */
+            background-color: #fef08a; /* Bright yellow */
+            width: 4px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 9999;
+            box-shadow: 0 0 10px #fef08a, 0 0 20px #fef08a;
+            clip-path: polygon(55% 0, 100% 0, 45% 100%, 0 100%);
+            animation: shoot-out 0.5s ease-out forwards;
+        }
+
+        @keyframes shoot-out {
+            from {
+                opacity: 1;
+                transform-origin: center;
+                transform: var(--transform-start);
+            }
+            to {
+                opacity: 0;
+                transform-origin: center;
+                transform: var(--transform-end);
+            }
+        }
+
+        /* Simplified styles for unified I/O boxes */
+        .io-box {
+            background-color: var(--inactive-bg-color);
+            color: #f0f0f0;
+            transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .io-box.active {
+            background-color: var(--active-bg-color);
+            color: #111827; /* Dark color for high contrast on active */
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.4);
+        }
+        
+        /* Rainbow border animation for panels */
+        @keyframes rainbow-border {
+            0% { border-color: #ef4444; }
+            14% { border-color: #f97316; }
+            28% { border-color: #eab308; }
+            42% { border-color: #22c55e; }
+            57% { border-color: #3b82f6; }
+            71% { border-color: #6366f1; }
+            85% { border-color: #a855f7; }
+            100% { border-color: #ef4444; }
+        }
+
+        .panel-section {
+            background-color: rgba(0, 0, 0, 0.3); /* Glassmorphism background */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 4px solid;
+            border-radius: 16px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.3);
+            animation: rainbow-border 15s linear infinite;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-4">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="font-display text-3xl md:text-5xl rainbow-text" style="text-shadow: 2px 2px 4px #000;">Ada's Control Panel</h1>
+            <p class="mt-4 text-lg">Status: <span id="status" class="font-bold text-red-500">Connecting...</span></p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Inputs Column -->
+            <section class="panel-section p-4">
+                <h2 class="font-display text-2xl mb-4 text-center text-cyan-300">SENSORS</h2>
+                <div id="inputs-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+                    <!-- Input items will be generated here by JavaScript -->
+                </div>
+            </section>
+            
+            <!-- Outputs Column -->
+            <section class="panel-section p-4">
+                <h2 class="font-display text-2xl mb-4 text-center text-orange-400">CONTROLS</h2>
+                <div id="outputs-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+                    <!-- Output items will be generated here by JavaScript -->
+                </div>
+            </section>
+            
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusEl = document.getElementById('status');
+            const inputsGrid = document.getElementById('inputs-grid');
+            const outputsGrid = document.getElementById('outputs-grid');
+
+            // --- IMPORTANT ---
+            // Replace this URL with the actual address of your WebSocket server
+            const WEBSOCKET_URL = `ws://${location.hostname}:${location.port}/`;
+            
+            const rainbowColors = [
+                '#ef4444', '#f97316', '#eab308', '#22c55e', 
+                '#3b82f6', '#6366f1', '#a855f7', '#ec4899'
+            ];
+
+            const inputKeys = [
+                'checker_0_sensor', 'checker_1_sensor', 'checker_2_sensor', 'checker_3_sensor', 
+                'checker_4_sensor', 'checker_5_sensor', 'checker_6_sensor', 'tilt_switch',
+                'left_in_sensor_1', 'left_in_sensor_2', 'right_in_sensor_1', 'right_in_sensor_2',
+                'hopper_left_sensor', 'hopper_right_sensor', 'hopper_out_sensor', 'table_sensor',
+                'left_divider_sensor', 'right_divider_sensor', 'test_switch', 'select_switch_up',
+                'select_switch_down', 'enter_switch'
+            ];
+
+            const outputKeys = [
+                'checker_0_led', 'checker_1_led', 'checker_2_led', 'checker_3_led', 'checker_4_led',
+                'checker_5_led', 'checker_6_led', 'table_motor', 'left_hopper', 'right_hopper',
+                'lockout_solenoid_left', 'lockout_solenoid_right', 'out_hopper', 'payout_solenoid',
+                'divider_solenoid_left', 'divider_solenoid_right', 'ray_lamp'
+            ];
+
+            // --- State Management ---
+            const inputsState = {};
+            inputKeys.forEach(key => inputsState[key] = false);
+
+            const outputsState = {};
+            outputKeys.forEach(key => outputsState[key] = false);
+
+            // --- Test Mode State ---
+            let isTestModeActive = false;
+            let testModeInterval = null;
+
+            // --- Audio Setup ---
+            let audioReady = false;
+            let inputOnSynth, outputOnSynth, outputOffSynth, masterToggleSynth;
+
+            function initAudio() {
+                if (audioReady || typeof Tone === 'undefined') return;
+                Tone.start();
+                
+                inputOnSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.2 } }).toDestination();
+                outputOnSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.05, release: 0.1 } }).toDestination();
+                outputOffSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.05, release: 0.1 } }).toDestination();
+                masterToggleSynth = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
+                
+                audioReady = true;
+                console.log('Audio context started.');
+            }
+            // Initialize audio on the first user interaction
+            document.body.addEventListener('click', initAudio, { once: true });
+
+
+            function formatLabel(key) {
+                return key.replace(/_/g, ' ')
+                          .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+            }
+
+            function hexToRgba(hex, alpha = 1) {
+                const hexValue = hex.startsWith('#') ? hex.slice(1) : hex;
+                const bigint = parseInt(hexValue, 16);
+                const r = (bigint >> 16) & 255;
+                const g = (bigint >> 8) & 255;
+                const b = bigint & 255;
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+
+            // --- UI Generation ---
+            inputKeys.forEach((key, index) => {
+                const label = formatLabel(key);
+                const color = rainbowColors[index % rainbowColors.length];
+                const item = document.createElement('div');
+                item.id = `input-${key}`;
+                item.className = 'io-box flex items-center justify-center p-3 rounded-lg shadow-inner text-center';
+                item.innerHTML = `<span class="font-semibold text-sm">${label}</span>`;
+                
+                item.style.setProperty('--inactive-bg-color', hexToRgba(color, 0.25));
+                item.style.setProperty('--active-bg-color', color);
+
+                inputsGrid.appendChild(item);
+            });
+
+            // Create Master Toggle Control
+            const masterToggle = document.createElement('div');
+            masterToggle.id = 'master-toggle';
+            masterToggle.className = 'io-box flex items-center justify-center p-3 rounded-lg shadow-inner cursor-pointer select-none text-center';
+            masterToggle.innerHTML = `<span class="font-bold text-sm">MASTER TOGGLE</span>`;
+            const masterColor = '#d1d5db'; // A neutral light gray color
+            masterToggle.style.setProperty('--inactive-bg-color', hexToRgba(masterColor, 0.25));
+            masterToggle.style.setProperty('--active-bg-color', masterColor);
+            
+            masterToggle.addEventListener('click', (event) => {
+                if(audioReady) masterToggleSynth.triggerAttackRelease('0.1');
+                createLightningEffect(event.currentTarget);
+                
+                const turnOn = !outputKeys.some(key => outputsState[key]);
+                
+                outputKeys.forEach(key => {
+                    outputsState[key] = turnOn;
+                    const item = document.getElementById(`output-${key}`);
+                    if (item) {
+                        item.classList.toggle('active', turnOn);
+                    }
+                });
+                sendOutputs();
+            });
+            outputsGrid.prepend(masterToggle);
+
+            // Create Test Mode Toggle Control
+            const testModeToggle = document.createElement('div');
+            testModeToggle.id = 'test-mode-toggle';
+            testModeToggle.className = 'io-box flex items-center justify-center p-3 rounded-lg shadow-inner cursor-pointer select-none text-center';
+            testModeToggle.innerHTML = `<span class="font-bold text-sm">TEST MODE</span>`;
+            const testModeColor = '#fde047'; // A vibrant yellow for testing
+            testModeToggle.style.setProperty('--inactive-bg-color', hexToRgba(testModeColor, 0.25));
+            testModeToggle.style.setProperty('--active-bg-color', testModeColor);
+            testModeToggle.addEventListener('click', toggleTestMode);
+            // Add it after the master toggle
+            masterToggle.after(testModeToggle);
+
+            outputKeys.forEach((key, index) => {
+                const label = formatLabel(key);
+                const color = rainbowColors[index % rainbowColors.length];
+                const item = document.createElement('div');
+                item.id = `output-${key}`;
+                item.className = 'io-box flex items-center justify-center p-3 rounded-lg shadow-inner cursor-pointer select-none text-center';
+                item.innerHTML = `<span class="font-semibold text-sm">${label}</span>`;
+                
+                item.style.setProperty('--inactive-bg-color', hexToRgba(color, 0.25));
+                item.style.setProperty('--active-bg-color', color);
+
+                item.addEventListener('click', () => {
+                    const isActive = item.classList.toggle('active');
+                    outputsState[key] = isActive;
+                    if (audioReady) {
+                        isActive ? outputOnSynth.triggerAttackRelease('E5', '16n') : outputOffSynth.triggerAttackRelease('C4', '16n');
+                    }
+                    sendOutputs();
+                });
+
+                outputsGrid.appendChild(item);
+            });
+
+            // --- WebSocket Logic ---
+            let socket;
+            function connect() {
+                try {
+                    socket = new WebSocket(WEBSOCKET_URL);
+                } catch (e) {
+                    console.error("Error creating WebSocket:", e);
+                    statusEl.textContent = 'Connection Error';
+                    statusEl.className = 'font-bold text-red-500';
+                    setTimeout(connect, 5000);
+                    return;
+                }
+                socket.onopen = () => {
+                    statusEl.textContent = 'Connected';
+                    statusEl.className = 'font-bold text-green-500';
+                };
+                socket.onmessage = (event) => {
+                    try {
+                        // Ignore server messages if test mode is active
+                        if (isTestModeActive) return;
+
+                        const newInputs = JSON.parse(event.data);
+                        updateInputIndicators(newInputs);
+                    } catch (error) {
+                        console.error('Error parsing incoming JSON:', error);
+                    }
+                };
+                socket.onclose = () => {
+                    statusEl.textContent = 'Disconnected. Retrying...';
+                    statusEl.className = 'font-bold text-orange-500';
+                    setTimeout(connect, 3000);
+                };
+                socket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    statusEl.textContent = 'Connection Error';
+                    statusEl.className = 'font-bold text-red-500';
+                    socket.close();
+                };
+            }
+
+            function toggleTestMode() {
+                isTestModeActive = !isTestModeActive;
+                testModeToggle.classList.toggle('active', isTestModeActive);
+
+                if (isTestModeActive) {
+                    // Start randomly toggling sensors
+                    if(audioReady) outputOnSynth.triggerAttackRelease('G5', '16n');
+                    testModeInterval = setInterval(runSensorTestCycle, 750);
+                } else {
+                    // Stop the test and turn all sensors off
+                    if(audioReady) outputOffSynth.triggerAttackRelease('B3', '16n');
+                    clearInterval(testModeInterval);
+                    testModeInterval = null;
+                    // Reset all sensors to off state
+                    inputKeys.forEach(key => {
+                        const item = document.getElementById(`input-${key}`);
+                        if (item) {
+                            item.classList.remove('active');
+                        }
+                        inputsState[key] = false;
+                    });
+                }
+            }
+
+            function runSensorTestCycle() {
+                inputKeys.forEach(key => {
+                    // 1 in 5 chance to toggle any given sensor's state each cycle
+                    if (Math.random() < 0.2) {
+                        const wasActive = inputsState[key];
+                        const isActive = !wasActive;
+                        const item = document.getElementById(`input-${key}`);
+
+                        if (item) {
+                            item.classList.toggle('active', isActive);
+                        }
+                        if (isActive && !wasActive && audioReady) {
+                            inputOnSynth.triggerAttackRelease('C5', '8n');
+                        }
+                        inputsState[key] = isActive;
+                    }
+                });
+            }
+
+            function updateInputIndicators(newInputs) {
+                inputKeys.forEach(key => {
+                    const item = document.getElementById(`input-${key}`);
+                    const wasActive = inputsState[key];
+                    const isActive = newInputs[key];
+
+                    if (item) {
+                        item.classList.toggle('active', isActive);
+                    }
+                    if (isActive && !wasActive && audioReady) {
+                        inputOnSynth.triggerAttackRelease('C5', '8n');
+                    }
+                    inputsState[key] = isActive;
+                });
+            }
+
+            function sendOutputs() {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify(outputsState));
+                } else {
+                    console.warn('Cannot send data, WebSocket is not open.');
+                }
+            }
+
+            function createLightningEffect(element) {
+                const rect = element.getBoundingClientRect();
+                const startX = rect.left + rect.width / 2;
+                const startY = rect.top + rect.height / 2;
+                const boltCount = 10;
+
+                for (let i = 0; i < boltCount; i++) {
+                    const bolt = document.createElement('div');
+                    bolt.className = 'lightning-bolt';
+                    document.body.appendChild(bolt);
+
+                    const angle = Math.random() * 360;
+                    const distance = 100 + Math.random() * 100;
+                    const endX = Math.cos(angle * Math.PI / 180) * distance;
+                    const endY = Math.sin(angle * Math.PI / 180) * distance;
+                    
+                    bolt.style.top = `${startY}px`;
+                    bolt.style.left = `${startX}px`;
+
+                    const startTransform = `translate(-50%, -50%) rotate(${angle + 90}deg) scale(0.3)`;
+                    const endTransform = `translate(-50%, -50%) translate(${endX}px, ${endY}px) rotate(${angle + 90}deg) scale(1)`;
+
+                    bolt.style.setProperty('--transform-start', startTransform);
+                    bolt.style.setProperty('--transform-end', endTransform);
+
+                    bolt.addEventListener('animationend', () => {
+                        bolt.remove();
+                    });
+                }
+            }
+            
+            connect();
+        });
+    </script>
+</body>
+</html>

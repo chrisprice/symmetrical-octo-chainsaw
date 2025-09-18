@@ -1,8 +1,8 @@
-use edge_http::Method;
 use edge_http::io::server::{Connection, Handler};
 use edge_http::ws::MAX_BASE64_KEY_RESPONSE_LEN;
+use edge_http::Method;
 use edge_ws::{FrameHeader, FrameType};
-use embassy_futures::select::{Either, select};
+use embassy_futures::select::{select, Either};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 use embedded_io_async::{Read, Write};
@@ -46,11 +46,10 @@ impl Handler for WsHandler {
         } else if headers.path != "/" {
             conn.initiate_response(404, Some("Not Found"), &[]).await?;
         } else if !conn.is_ws_upgrade_request()? {
-            conn.initiate_response(200, Some("OK"), &[("Content-Type", "text/plain")])
+            conn.initiate_response(200, Some("OK"), &[("Content-Type", "text/html")])
                 .await?;
 
-            conn.write_all(b"Initiate WS Upgrade request to switch this connection to WS")
-                .await?;
+            conn.write_all(include_bytes!("public/index.html")).await?;
         } else {
             let mut buf = [0_u8; MAX_BASE64_KEY_RESPONSE_LEN];
             conn.initiate_ws_upgrade_response(&mut buf).await?;
@@ -76,11 +75,7 @@ impl Handler for WsHandler {
                                 assert!(!fragmented, "Fragmented frames not supported");
                                 let (outputs, length): (Outputs, _) =
                                     serde_json_core::from_slice(payload)?;
-                                assert_eq!(
-                                    length,
-                                    payload.len(),
-                                    "Did not consume full payload"
-                                );
+                                assert_eq!(length, payload.len(), "Did not consume full payload");
                                 info!("Got {}, with payload \"{:?}\"", header, outputs);
                                 OUTPUTS.signal(outputs);
                             }
