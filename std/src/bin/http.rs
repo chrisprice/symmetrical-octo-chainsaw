@@ -9,6 +9,10 @@ fn main() {
 }
 
 pub async fn run() -> ! {
+    env_logger::init_from_env(
+        env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
+    );
+
     let addr = "0.0.0.0:8881";
 
     println!("Running HTTP server on {addr}");

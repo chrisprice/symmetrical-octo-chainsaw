@@ -9,6 +9,7 @@ anyhow = "1.0.99"
 edge-nal = { version = "0.5.0" }
 edge-nal-std = "0.5.0"
 embedded-io-async = { version = "0.6.1" }
+env_logger = "0.10"
 futures-lite = "2.6.1"
 symmetrical-octo-chainsaw-shared = { path = "../shared", features = ["log"] }
 
