@@ -1,0 +1,7 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "firmware/Cargo.toml",
+        "shared/Cargo.toml",
+        // "std/Cargo.toml",
+    ]
+}

@@ -6,14 +6,14 @@ edition = "2021"
 [dependencies]
 # direct dependencies
 anyhow = "1.0.99"
-edge-nal = { workspace = true }
+edge-nal = { version = "0.5.0" }
 edge-nal-std = "0.5.0"
-embedded-io-async = { workspace = true }
+embedded-io-async = { version = "0.6.1" }
 futures-lite = "2.6.1"
 symmetrical-octo-chainsaw-shared = { path = "../shared", features = ["log"] }
 
 # configure std support in transitive dependencies
-critical-section = { workspace = true, features = ["std"] }
-embassy-sync = { workspace = true, features = ["std"] }
-embassy-time = { workspace = true, features = ["std", "log", "generic-queue-8"] }
+critical-section = { version = "1.1", features = ["std"] }
+embassy-sync = { version = "0.7.2", features = ["std"] }
+embassy-time = { version = "0.5.0", features = ["std", "log", "generic-queue-8"] }
 
