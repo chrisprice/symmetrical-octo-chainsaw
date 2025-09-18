@@ -1,0 +1,19 @@
+[package]
+name = "std"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# direct dependencies
+anyhow = "1.0.99"
+edge-nal = { workspace = true }
+edge-nal-std = "0.5.0"
+embedded-io-async = { workspace = true }
+futures-lite = "2.6.1"
+symmetrical-octo-chainsaw-shared = { path = "../shared", features = ["log"] }
+
+# configure std support in transitive dependencies
+critical-section = { workspace = true, features = ["std"] }
+embassy-sync = { workspace = true, features = ["std"] }
+embassy-time = { workspace = true, features = ["std", "log", "generic-queue-8"] }
+

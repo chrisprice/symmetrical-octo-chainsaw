@@ -1,0 +1,24 @@
+[package]
+name = "symmetrical-octo-chainsaw-shared"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+defmt = { workspace = true, optional = true}
+log = { workspace = true, optional = true }
+
+serde = { workspace = true }
+serde-json-core = { workspace = true }
+
+edge-http = { workspace = true }
+edge-nal = { workspace = true }
+edge-ws = { workspace = true }
+embassy-futures = { workspace = true }
+embassy-sync = { workspace = true }
+embassy-time = { workspace = true }
+embedded-io-async = { workspace = true }
+
+[features]
+default = []
+log = ["dep:log", "edge-http/log"]
+defmt = ["dep:defmt", "edge-http/defmt", "edge-ws/defmt"]

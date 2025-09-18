@@ -1,13 +1,14 @@
-use defmt::*;
 use serde::{Deserialize, Serialize};
 
+#[allow(async_fn_in_trait)]
 pub trait Io {
     type Error;
     async fn inputs(&mut self) -> Result<Inputs, Self::Error>;
     async fn set_outputs(&mut self, outputs: Outputs) -> Result<(), Self::Error>;
 }
 
-#[derive(Serialize, Deserialize, Format, PartialEq, Eq, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Inputs {
     pub checker_0_sensor: bool,
     pub checker_1_sensor: bool,
@@ -33,7 +34,8 @@ pub struct Inputs {
     pub enter_switch: bool,
 }
 
-#[derive(Serialize, Deserialize, Format, PartialEq, Eq, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Outputs {
     pub checker_0_led: bool,
     pub checker_1_led: bool,

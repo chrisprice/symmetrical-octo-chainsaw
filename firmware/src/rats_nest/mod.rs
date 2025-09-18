@@ -1,9 +1,7 @@
 use embassy_rp::i2c::{Async, I2c};
+use symmetrical_octo_chainsaw_shared::pac_man_ball::{Inputs, Io, Outputs};
 
-use crate::{
-    mcp23017::{self, Mcp23017, Direction, PullUp},
-    pac_man_ball::{Inputs, Io, Outputs},
-};
+use crate::mcp23017::{self, Direction, Mcp23017, PullUp};
 
 const ADDRESSES: [u8; 3] = [
     mcp23017::ADDR + 0x01,

@@ -1,4 +1,3 @@
-use defmt::*;
 use edge_http::Method;
 use edge_http::io::server::{Connection, Handler};
 use edge_http::ws::MAX_BASE64_KEY_RESPONSE_LEN;
@@ -74,15 +73,15 @@ impl Handler for WsHandler {
                             .map_err(Error::Ws)?;
                         match header.frame_type {
                             FrameType::Text(fragmented) => {
-                                defmt::assert!(!fragmented, "Fragmented frames not supported");
+                                assert!(!fragmented, "Fragmented frames not supported");
                                 let (outputs, length): (Outputs, _) =
                                     serde_json_core::from_slice(payload)?;
-                                defmt::assert_eq!(
+                                assert_eq!(
                                     length,
                                     payload.len(),
                                     "Did not consume full payload"
                                 );
-                                info!("Got {}, with payload \"{}\"", header, outputs);
+                                info!("Got {}, with payload \"{:?}\"", header, outputs);
                                 OUTPUTS.signal(outputs);
                             }
                             FrameType::Close => {

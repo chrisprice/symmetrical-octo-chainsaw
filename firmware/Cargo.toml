@@ -1,0 +1,71 @@
+[package]
+name = "firmware"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+symmetrical-octo-chainsaw-shared = { path = "../shared", features = ["defmt"] }
+embassy-executor = { version = "0.9.1", features = [
+    "arch-cortex-m",
+    "executor-thread",
+    "executor-interrupt",
+    "defmt",
+] }
+defmt = { workspace = true }
+embassy-rp = { version = "0.8.0", features = [
+    "defmt",
+    "unstable-pac",
+    "time-driver",
+    "critical-section-impl",
+    "rp2040",
+] }
+embassy-embedded-hal = { version = "0.5.0", features = ["defmt"] }
+embassy-sync = { workspace = true, features = ["defmt"] }
+embassy-time = { workspace = true, features = [
+    "defmt",
+    "defmt-timestamp-uptime",
+] }
+embassy-usb = { version = "0.5.1", features = ["defmt"] }
+embassy-net = { version = "0.7.1", features = [
+    "defmt",
+    "icmp",
+    "tcp",
+    "udp",
+    "raw",
+    "dhcpv4",
+    "medium-ethernet",
+    "dns",
+    "proto-ipv4",
+    "proto-ipv6",
+    "multicast",
+] }
+embassy-net-wiznet = { version = "0.2.1", features = ["defmt"] }
+embassy-futures = { workspace = true }
+embassy-usb-logger = { version = "0.5.1" }
+cyw43 = { version = "0.5.0", features = ["defmt", "firmware-logs"] }
+cyw43-pio = { version = "0.8.0", features = ["defmt"] }
+defmt-rtt = "1.0.0"
+fixed = "1.23.1"
+fixed-macro = "1.2"
+cortex-m = { version = "0.7.6" }
+cortex-m-rt = "0.7.0"
+critical-section = { workspace = true }
+panic-probe = { version = "1.0.0", features = ["print-defmt"] }
+heapless = { workspace = true }
+embedded-hal-1 = { package = "embedded-hal", version = "1.0" }
+embedded-hal-async = "1.0"
+embedded-hal-bus = { version = "0.1", features = ["async"] }
+embedded-io-async = { workspace = true, features = ["defmt-03"] }
+embedded-storage = "0.3"
+static_cell = { workspace = true }
+portable-atomic = { version = "1.5", features = ["critical-section"] }
+log = { workspace = true }
+rand = { version = "0.9.0", default-features = false }
+bitflags = "2.9.4"
+edge-nal = { workspace = true }
+edge-nal-embassy = { version = "0.6.0", features = ["defmt"] }
+
+[[bin]]
+name = "firmware"
+test = false
+bench = false
