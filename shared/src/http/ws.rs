@@ -16,10 +16,10 @@ static OUTPUTS: Signal<CriticalSectionRawMutex, Outputs> = Signal::new();
 pub struct WsHandler;
 
 impl WsHandler {
-    pub fn signal_inputs(&self, inputs: Inputs) {
+    pub fn signal_inputs(inputs: Inputs) {
         INPUTS.signal(inputs);
     }
-    pub async fn wait_for_outputs(&self) -> Outputs {
+    pub async fn wait_for_outputs() -> Outputs {
         OUTPUTS.wait().await
     }
 }
@@ -90,17 +90,15 @@ impl Handler for WsHandler {
                         }
                     }
                     Either::Second(payload) => {
-                        let payload_len = serde_json_core::to_slice(&payload, &mut buf)?
-                            .try_into()
-                            .expect("buffer.len() << u64::MAX");
+                        let size = serde_json_core::to_slice(&payload, &mut buf)?;
                         let header = FrameHeader {
                             frame_type: FrameType::Text(false),
-                            payload_len,
+                            payload_len: size as _,
                             mask_key: None,
                         };
                         header.send(&mut socket).await.map_err(Error::Ws)?;
                         header
-                            .send_payload(&mut socket, &buf)
+                            .send_payload(&mut socket, &buf[..size])
                             .await
                             .map_err(Error::Ws)?;
                     }
