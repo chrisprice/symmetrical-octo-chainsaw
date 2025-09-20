@@ -1,22 +1,32 @@
 use anyhow::Error;
 use edge_nal::TcpBind;
 use edge_nal_std::Stack;
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::{Duration, Timer};
 use futures_lite::future::{block_on, or};
 use log::info;
 use symmetrical_octo_chainsaw_shared::{
-    http::{run_server, ws::WsHandler},
-    pac_man_ball::Inputs,
+    http::run_server,
+    pac_man_ball::{Inputs, Outputs},
 };
 
 fn main() {
-    block_on(or(run(), or(fake_inputs(), print_outputs())));
+    let ingress_signal: Signal<CriticalSectionRawMutex, Outputs> = Signal::new();
+    let egress_signal: Signal<CriticalSectionRawMutex, Inputs> = Signal::new();
+
+    block_on(or(
+        run(&ingress_signal, &egress_signal),
+        or(
+            fake_inputs(&egress_signal),
+            print_outputs(&ingress_signal),
+        ),
+    ));
 }
 
-pub async fn fake_inputs() -> ! {
+pub async fn fake_inputs(egress_signal: &Signal<CriticalSectionRawMutex, Inputs>) -> ! {
     loop {
         Timer::after(Duration::from_secs(1)).await;
-        WsHandler::signal_inputs(Inputs {
+        egress_signal.signal(Inputs {
             checker_0_sensor: rand::random_bool(0.1),
             checker_1_sensor: rand::random_bool(0.1),
             checker_2_sensor: rand::random_bool(0.1),
@@ -43,14 +53,17 @@ pub async fn fake_inputs() -> ! {
     }
 }
 
-pub async fn print_outputs() -> ! {
+pub async fn print_outputs(ingress_signal: &Signal<CriticalSectionRawMutex, Outputs>) -> ! {
     loop {
-        let outputs = WsHandler::wait_for_outputs().await;
+        let outputs = ingress_signal.wait().await;
         info!("Outputs: {outputs:?}");
     }
 }
 
-pub async fn run() -> ! {
+pub async fn run<'a>(
+    ingress_signal: &'a Signal<CriticalSectionRawMutex, Outputs>,
+    egress_signal: &'a Signal<CriticalSectionRawMutex, Inputs>,
+) -> ! {
     env_logger::init_from_env(
         env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
     );
@@ -59,9 +72,13 @@ pub async fn run() -> ! {
 
     info!("Running HTTP server on {addr}");
 
-    run_server(|| async move {
-        let acceptor = Stack::new().bind(addr.parse().unwrap()).await?;
-        Ok::<_, Error>(acceptor)
-    })
+    run_server(
+        || async move {
+            let acceptor = Stack::new().bind(addr.parse().unwrap()).await?;
+            Ok::<_, Error>(acceptor)
+        },
+        ingress_signal,
+        egress_signal,
+    )
     .await
 }

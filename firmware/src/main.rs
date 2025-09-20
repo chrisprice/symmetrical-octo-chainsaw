@@ -17,11 +17,12 @@ use embassy_rp::bind_interrupts;
 use embassy_rp::i2c::{self};
 use embassy_rp::peripherals::{I2C0, PIO0};
 use embassy_rp::pio::{self};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::signal::Signal;
 use embassy_time::Timer;
 use static_cell::StaticCell;
 use symmetrical_octo_chainsaw_shared::http::run_server;
-use symmetrical_octo_chainsaw_shared::http::ws::WsHandler;
-use symmetrical_octo_chainsaw_shared::pac_man_ball::Io;
+use symmetrical_octo_chainsaw_shared::pac_man_ball::{Inputs, Io, Outputs};
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -31,7 +32,11 @@ bind_interrupts!(struct Irqs {
 });
 
 #[embassy_executor::task]
-pub async fn http_task(stack: Stack<'static>) -> ! {
+pub async fn http_task(
+    stack: Stack<'static>,
+    ingress_signal: &'static Signal<CriticalSectionRawMutex, Outputs>,
+    egress_signal: &'static Signal<CriticalSectionRawMutex, Inputs>,
+) -> ! {
     let addr = "0.0.0.0:80".parse().expect("invalid address");
 
     static BUFFERS: StaticCell<TcpBuffers<4, 512, 512>> = StaticCell::new();
@@ -39,21 +44,30 @@ pub async fn http_task(stack: Stack<'static>) -> ! {
 
     let tcp = edge_nal_embassy::Tcp::new(stack, buffers);
 
-    run_server(|| async {
-        info!("Binding to {}", addr);
-        tcp.bind(addr).await
-    })
+    run_server(
+        || async {
+            info!("Binding to {}", addr);
+            tcp.bind(addr).await
+        },
+        ingress_signal,
+        egress_signal,
+    )
     .await
 }
 
 #[embassy_executor::task]
-async fn pipe_task(rats_nest: &'static mut RatsNest<'static, I2C0>) -> ! {
+async fn pipe_task(
+    rats_nest: &'static mut RatsNest<'static, I2C0>,
+    ingress_signal: &'static Signal<CriticalSectionRawMutex, Outputs>,
+    egress_signal: &'static Signal<CriticalSectionRawMutex, Inputs>,
+) -> ! {
     loop {
         let inputs = unwrap!(rats_nest.inputs().await);
-        WsHandler::signal_inputs(inputs);
+        egress_signal.signal(inputs);
 
-        let outputs = WsHandler::wait_for_outputs().await;
-        unwrap!(rats_nest.set_outputs(outputs).await);
+        if let Some(outputs) = ingress_signal.try_take() {
+            unwrap!(rats_nest.set_outputs(outputs).await);
+        }
     }
 }
 
@@ -73,7 +87,12 @@ async fn main(spawner: Spawner) {
     )
     .await;
 
-    unwrap!(spawner.spawn(http_task(stack)));
+    static INGRESS_SIGNAL: StaticCell<Signal<CriticalSectionRawMutex, Outputs>> = StaticCell::new();
+    let ingress_signal = INGRESS_SIGNAL.init(Signal::new());
+    static EGRESS_SIGNAL: StaticCell<Signal<CriticalSectionRawMutex, Inputs>> = StaticCell::new();
+    let egress_signal = EGRESS_SIGNAL.init(Signal::new());
+
+    unwrap!(spawner.spawn(http_task(stack, ingress_signal, egress_signal)));
 
     let mut led = board.user_led_1;
     let i2c = board.i2c;
@@ -81,7 +100,7 @@ async fn main(spawner: Spawner) {
     static RATS_NEST: StaticCell<RatsNest<I2C0>> = StaticCell::new();
     let rats_nest = RATS_NEST.init(unwrap!(RatsNest::new(i2c).await));
 
-    unwrap!(spawner.spawn(pipe_task(rats_nest)));
+    unwrap!(spawner.spawn(pipe_task(rats_nest, ingress_signal, egress_signal)));
 
     loop {
         Timer::after_secs(1).await;

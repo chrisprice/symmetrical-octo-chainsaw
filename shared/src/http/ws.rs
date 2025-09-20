@@ -9,22 +9,18 @@ use embedded_io_async::{Read, Write};
 
 use crate::pac_man_ball::{Inputs, Outputs};
 
-static INPUTS: Signal<CriticalSectionRawMutex, Inputs> = Signal::new();
-static OUTPUTS: Signal<CriticalSectionRawMutex, Outputs> = Signal::new();
+pub struct WsHandler<'a> {
+    ingress_signal: &'a Signal<CriticalSectionRawMutex, Outputs>,
+    egress_signal: &'a Signal<CriticalSectionRawMutex, Inputs>,
+}
 
-#[derive(Default)]
-pub struct WsHandler;
-
-impl WsHandler {
-    pub fn signal_inputs(inputs: Inputs) {
-        INPUTS.signal(inputs);
-    }
-    pub async fn wait_for_outputs() -> Outputs {
-        OUTPUTS.wait().await
+impl<'a> WsHandler<'a> {
+    pub(crate) fn new(ingress_signal: &'a Signal<CriticalSectionRawMutex, Outputs>, egress_signal: &'a Signal<CriticalSectionRawMutex, Inputs>) -> Self {
+        Self { ingress_signal, egress_signal }
     }
 }
 
-impl Handler for WsHandler {
+impl Handler for WsHandler<'_> {
     type Error<E>
         = Error<E>
     where
@@ -63,7 +59,7 @@ impl Handler for WsHandler {
             let mut buf = [0_u8; 8192];
 
             loop {
-                match select(FrameHeader::recv(&mut socket), INPUTS.wait()).await {
+                match select(FrameHeader::recv(&mut socket), self.egress_signal.wait()).await {
                     Either::First(header) => {
                         let header = header.map_err(Error::Ws)?;
                         let payload = header
@@ -77,7 +73,7 @@ impl Handler for WsHandler {
                                     serde_json_core::from_slice(payload)?;
                                 assert_eq!(length, payload.len(), "Did not consume full payload");
                                 info!("Got {}, with payload \"{:?}\"", header, outputs);
-                                OUTPUTS.signal(outputs);
+                                self.ingress_signal.signal(outputs);
                             }
                             FrameType::Close => {
                                 info!("Got {}, client closed the connection cleanly", header);
