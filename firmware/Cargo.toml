@@ -66,7 +66,8 @@ edge-nal = "0.5.0"
 edge-nal-embassy = { version = "0.6.0", features = ["defmt"] }
 
 [features]
-firmware-logs = ["cyw43/firmware-logs"]
+cyw43-firmware-logs = ["cyw43/firmware-logs"]
+include-cyw43-firmware = []
 
 [[bin]]
 name = "firmware"

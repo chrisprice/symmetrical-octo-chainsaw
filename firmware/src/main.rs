@@ -53,9 +53,8 @@ async fn main(spawner: Spawner) {
 
     let stack = net::init(
         spawner,
-        "symmetrical-octo-chainsaw",
-        option_env!("WIFI_PASSWORD").unwrap_or("default_password"),
-        5,
+        option_env!("WIFI_SSID").unwrap_or("symmetrical-octo-chainsaw"),
+        option_env!("WIFI_PASSPHRASE").unwrap_or("default_password"),
         board.conn_led,
         board.pwr,
         board.spi,
