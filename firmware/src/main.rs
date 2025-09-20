@@ -19,8 +19,9 @@ use embassy_rp::peripherals::{I2C0, PIO0};
 use embassy_rp::pio::{self};
 use embassy_time::Timer;
 use static_cell::StaticCell;
+use symmetrical_octo_chainsaw_shared::http::run_server;
+use symmetrical_octo_chainsaw_shared::http::ws::WsHandler;
 use symmetrical_octo_chainsaw_shared::pac_man_ball::Io;
-use symmetrical_octo_chainsaw_shared::{http::run_server, pac_man_ball::Outputs};
 use {defmt_rtt as _, panic_probe as _};
 
 bind_interrupts!(struct Irqs {
@@ -45,6 +46,17 @@ pub async fn http_task(stack: Stack<'static>) -> ! {
     .await
 }
 
+#[embassy_executor::task]
+async fn pipe_task(rats_nest: &'static mut RatsNest<'static, I2C0>) -> ! {
+    loop {
+        let inputs = unwrap!(rats_nest.inputs().await);
+        WsHandler::signal_inputs(inputs);
+
+        let outputs = WsHandler::wait_for_outputs().await;
+        unwrap!(rats_nest.set_outputs(outputs).await);
+    }
+}
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
@@ -64,27 +76,15 @@ async fn main(spawner: Spawner) {
     unwrap!(spawner.spawn(http_task(stack)));
 
     let mut led = board.user_led_1;
-    let button = board.user_switch_a;
     let i2c = board.i2c;
 
-    let mut ha = RatsNest::new(i2c).await.unwrap();
-    let rats_nest = &mut ha;
+    static RATS_NEST: StaticCell<RatsNest<I2C0>> = StaticCell::new();
+    let rats_nest = RATS_NEST.init(unwrap!(RatsNest::new(i2c).await));
+
+    unwrap!(spawner.spawn(pipe_task(rats_nest)));
 
     loop {
-        let inputs = rats_nest.inputs().await.unwrap();
-        info!("inputs: {:?}", inputs);
-
-        let mut outputs = Outputs::default();
-        if button.is_high() {
-            led.set_high();
-            outputs.checker_0_led = true;
-        } else {
-            led.set_low();
-            outputs.checker_0_led = false;
-        }
-        info!("outputs: {:?}", outputs);
-        rats_nest.set_outputs(outputs).await.unwrap();
-
-        Timer::after_millis(1000).await;
+        Timer::after_secs(1).await;
+        led.toggle();
     }
 }
