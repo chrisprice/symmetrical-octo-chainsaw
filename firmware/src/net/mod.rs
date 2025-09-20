@@ -90,7 +90,7 @@ pub async fn init(
         gateway: None,
     });
 
-    static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
+    static RESOURCES: StaticCell<StackResources<8>> = StaticCell::new();
     let (stack, runner) =
         embassy_net::new(net_device, config, RESOURCES.init(StackResources::new()), {
             let mut rng = RoscRng;

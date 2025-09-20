@@ -33,7 +33,7 @@ bind_interrupts!(struct Irqs {
 pub async fn http_task(stack: Stack<'static>) -> ! {
     let addr = "0.0.0.0:80".parse().expect("invalid address");
 
-    static BUFFERS: StaticCell<TcpBuffers<1, 512, 512>> = StaticCell::new();
+    static BUFFERS: StaticCell<TcpBuffers<4, 512, 512>> = StaticCell::new();
     let buffers = BUFFERS.init(TcpBuffers::new());
 
     let tcp = edge_nal_embassy::Tcp::new(stack, buffers);
